@@ -1,0 +1,143 @@
+PROGRAM SockServer
+ 
+%STACKSIZE = 13000
+%NOPAUSE=ERROR+COMMAND+TPENABLE
+
+
+%ENVIRONMENT sysdef
+%ENVIRONMENT flbt
+%ENVIRONMENT STRNG
+%ENVIRONMENT MOTN
+
+VAR
+
+	point_rt_w : XYZWPR
+	STATUS : INTEGER
+	file_var : FILE
+	x : INTEGER
+	y : INTEGER
+	z : INTEGER
+	w : INTEGER
+	p : INTEGER
+	r : INTEGER
+	speed : INTEGER
+	ctrl : INTEGER
+	ctrl_now : INTEGER
+
+ROUTINE reset_tool_ 
+VAR
+
+	crtpos_: XYZWPREXT
+	zero_frm_: POSITION
+
+BEGIN
+
+	crtpos_.x = 0
+	crtpos_.y = 0
+	crtpos_.z = 0
+	crtpos_.w = 0
+	crtpos_.p = 0
+	crtpos_.r = 0
+	zero_frm_= crtpos_
+	$UTOOL = zero_frm_
+
+END reset_tool_
+
+
+ROUTINE set_def_sets 
+BEGIN
+
+	reset_tool_
+	
+	point_rt_w = CURPOS(0,0)
+
+
+	$MCR.$GENOVERRIDE = 25
+	$DMAURST = TRUE
+	$SPEED = 100
+	$TERMTYPE = NODECEL
+	$JCR_GRP[1].$JOG_COORD = 2
+	$MOTYPE = JOINT
+
+END set_def_sets
+
+ROUTINE connect_sock 
+VAR 
+
+	entry : INTEGER
+
+BEGIN
+
+	SET_VAR(entry, '*SYSTEM*', '$HOSTS_CFG[3].$SERVER_PORT',   59002, STATUS)
+	MSG_DISCO('S3:', STATUS)
+	MSG_CONNECT('S3:', STATUS)
+
+END connect_sock
+
+
+BEGIN
+	
+	set_def_sets 
+	
+	WHILE TRUE DO
+		
+		connect_sock
+		
+		IF (STATUS = 0) THEN
+			
+				OPEN FILE file_var ('RW', 'S3:')
+				STATUS = IO_STATUS(file_var)
+		
+		ENDIF
+		
+		IF (STATUS = 0) THEN
+			
+			READ file_var (x)			
+			READ file_var (y)
+			READ file_var (z)
+			READ file_var (w)
+			READ file_var (p)
+			READ file_var (r)
+			READ file_var (speed)
+			READ file_var(ctrl_now::1)
+			
+			IF  ( (UNINIT(x)) OR (UNINIT(y)) OR (UNINIT(z)) OR (UNINIT(w)) OR 
+			(UNINIT(p)) OR (UNINIT(r)) OR (UNINIT(speed)) OR (UNINIT(ctrl_now))  ) THEN
+			
+				WRITE file_var('ERROR: INCORRECT INPUT')
+				ctrl = 1
+				
+			ELSE
+				
+				ctrl = ctrl_now
+				
+				point_rt_w.x = x/1000
+				point_rt_w.y = y/1000
+				point_rt_w.z = z/1000
+				point_rt_w.w = w/1000
+				point_rt_w.p = p/1000
+				point_rt_w.r = r/1000
+				
+				CHECK_EPOS((point_rt_w), $UFRAME, $UTOOL, STATUS)
+				
+				
+				IF ( (STATUS = 0) AND (speed > 0)  AND (speed < 2000) )THEN
+					WRITE file_var('SUCESS: MOVEMENT COMPLETE')
+					$SPEED = speed
+					MOVE TO point_rt_w NOWAIT
+				ELSE
+					WRITE file_var('ERROR: POINT UNREACHABLE')
+				
+				ENDIF
+				
+			ENDIF
+			
+		ENDIF
+		
+		CANCEL FILE  file_var
+		CLOSE FILE file_var
+		MSG_DISCO('S3:',STATUS)
+		
+	ENDWHILE
+
+END SockServer

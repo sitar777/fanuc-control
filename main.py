@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 app = FastAPI()
 app.fanuc_position = settings.FANUC_HOME
 app.templates = Jinja2Templates(directory="templates")
+app.video = None
 
 routes.register_routes(app)
 

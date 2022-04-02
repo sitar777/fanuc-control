@@ -3,10 +3,12 @@ from uvicorn import run
 
 import src.routes as routes
 from src.config import settings
+from fastapi.templating import Jinja2Templates
 
 
 app = FastAPI()
 app.fanuc_position = settings.FANUC_HOME
+app.templates = Jinja2Templates(directory="templates")
 
 routes.register_routes(app)
 

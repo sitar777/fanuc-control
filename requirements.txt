@@ -1,0 +1,11 @@
+wheel
+
+fastapi
+uvicorn
+
+flake8
+
+imutils
+numpy
+
+opencv-python
